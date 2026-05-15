@@ -85,7 +85,7 @@ export class FirebaseService {
 
     const fetchMessages = async () => {
       try {
-        const url = `${BASE_URL}/rooms/${roomCode}/messages?orderBy=fields.timestamp&key=${FIREBASE_CONFIG.apiKey}`;
+        const url = `${BASE_URL}/rooms/${roomCode}/messages?key=${FIREBASE_CONFIG.apiKey}`;
         const res = await fetch(url);
         if (!res.ok) return;
 
