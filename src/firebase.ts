@@ -1,29 +1,9 @@
-import { initializeApp, FirebaseApp } from 'firebase/app';
-import {
-  initializeFirestore,
-  Firestore,
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  addDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  serverTimestamp,
-  Unsubscribe,
-  updateDoc,
-  arrayUnion,
-} from 'firebase/firestore';
-
-const firebaseConfig = {
+const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyAwToX6r-BLPg9KWz7s6DicAZ01jvzzxBM',
-  authDomain: 'fist99-punchline.firebaseapp.com',
   projectId: 'fist99-punchline',
-  storageBucket: 'fist99-punchline.firebasestorage.app',
-  messagingSenderId: '390655782275',
-  appId: '1:390655782275:web:4b4cd2ca46f857772e9ab6',
 };
+
+const BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`;
 
 export interface ChatMessage {
   id: string;
@@ -33,62 +13,105 @@ export interface ChatMessage {
 }
 
 export class FirebaseService {
-  private app: FirebaseApp;
-  private db: Firestore;
-  private unsubscribe: Unsubscribe | null = null;
-
-  constructor() {
-    this.app = initializeApp(firebaseConfig);
-    this.db = initializeFirestore(this.app, {
-      experimentalForceLongPolling: true,
-    });
-  }
+  private polling: ReturnType<typeof setInterval> | null = null;
 
   async createRoom(code: string, creator: string): Promise<void> {
-    await setDoc(doc(this.db, 'rooms', code), {
-      createdAt: serverTimestamp(),
-      members: [creator],
+    const url = `${BASE_URL}/rooms?documentId=${code}&key=${FIREBASE_CONFIG.apiKey}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          createdAt: { timestampValue: new Date().toISOString() },
+          members: { arrayValue: { values: [{ stringValue: creator }] } },
+        },
+      }),
     });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`createRoom failed: ${err}`);
+    }
   }
 
   async roomExists(code: string): Promise<boolean> {
-    const snap = await getDoc(doc(this.db, 'rooms', code));
-    return snap.exists();
+    const url = `${BASE_URL}/rooms/${code}?key=${FIREBASE_CONFIG.apiKey}`;
+    const res = await fetch(url);
+    return res.ok;
   }
 
   async joinRoom(code: string, nickname: string): Promise<void> {
-    await updateDoc(doc(this.db, 'rooms', code), {
-      members: arrayUnion(nickname),
+    // Read current members, then update
+    const url = `${BASE_URL}/rooms/${code}?key=${FIREBASE_CONFIG.apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Room not found');
+
+    const doc: any = await res.json();
+    const members = doc.fields?.members?.arrayValue?.values || [];
+    members.push({ stringValue: nickname });
+
+    const patchUrl = `${BASE_URL}/rooms/${code}?updateMask.fieldPaths=members&key=${FIREBASE_CONFIG.apiKey}`;
+    await fetch(patchUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          members: { arrayValue: { values: members } },
+        },
+      }),
     });
   }
 
   async sendMessage(roomCode: string, sender: string, text: string): Promise<void> {
-    await addDoc(collection(this.db, 'rooms', roomCode, 'messages'), {
-      sender,
-      text,
-      timestamp: Date.now(),
+    const url = `${BASE_URL}/rooms/${roomCode}/messages?key=${FIREBASE_CONFIG.apiKey}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          sender: { stringValue: sender },
+          text: { stringValue: text },
+          timestamp: { integerValue: String(Date.now()) },
+        },
+      }),
     });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`sendMessage failed: ${err}`);
+    }
   }
 
   listenMessages(roomCode: string, callback: (messages: ChatMessage[]) => void): void {
     this.stopListening();
-    const q = query(
-      collection(this.db, 'rooms', roomCode, 'messages'),
-      orderBy('timestamp', 'asc')
-    );
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      const messages: ChatMessage[] = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Omit<ChatMessage, 'id'>),
-      }));
-      callback(messages);
-    });
+
+    const fetchMessages = async () => {
+      try {
+        const url = `${BASE_URL}/rooms/${roomCode}/messages?orderBy=fields.timestamp&key=${FIREBASE_CONFIG.apiKey}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+
+        const data: any = await res.json();
+        const docs = data.documents || [];
+        const messages: ChatMessage[] = docs.map((d: any) => ({
+          id: d.name.split('/').pop(),
+          sender: d.fields.sender.stringValue,
+          text: d.fields.text.stringValue,
+          timestamp: Number(d.fields.timestamp.integerValue),
+        }));
+        messages.sort((a, b) => a.timestamp - b.timestamp);
+        callback(messages);
+      } catch (_) {
+        // silently retry next interval
+      }
+    };
+
+    fetchMessages();
+    this.polling = setInterval(fetchMessages, 1500);
   }
 
   stopListening(): void {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
+    if (this.polling) {
+      clearInterval(this.polling);
+      this.polling = null;
     }
   }
 }
