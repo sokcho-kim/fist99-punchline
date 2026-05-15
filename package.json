@@ -1,0 +1,52 @@
+{
+  "name": "fist99-punchline",
+  "displayName": "Subtitle Workspace",
+  "description": "Subtitle editing and QC tool for video production workflows",
+  "version": "0.1.0",
+  "publisher": "fist99",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "subtitleWorkspace.open",
+        "title": "Subtitle Workspace: Open Editor"
+      },
+      {
+        "command": "subtitleWorkspace.join",
+        "title": "Subtitle Workspace: Reset & Rejoin"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "subtitleWorkspace.open",
+        "key": "ctrl+shift+u",
+        "mac": "cmd+shift+u"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "webpack --mode production",
+    "dev": "webpack --mode development --watch",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "firebase": "^10.7.1"
+  }
+}
