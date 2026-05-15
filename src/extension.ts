@@ -26,7 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
         chatPanel = ChatPanel.createOrShow(context, firebase, roomCode, nickname);
         vscode.window.showInformationMessage(`Session Code: ${roomCode} — Share this with your partner`);
       } catch (e: any) {
-        vscode.window.showErrorMessage(`Failed to create session: ${e.message}`);
+        vscode.window.showErrorMessage(`Create failed: ${e.message}`);
       }
     } else if (action === 'Join Existing Session') {
       const code = await vscode.window.showInputBox({
@@ -34,16 +34,21 @@ export function activate(context: vscode.ExtensionContext) {
         placeHolder: 'Enter the 6-digit session code',
       });
       if (!code) return;
+
+      const roomCode = code.trim().toUpperCase();
+      vscode.window.showInformationMessage(`Joining session ${roomCode}...`);
+
       try {
-        const exists = await firebase.roomExists(code.toUpperCase());
+        const exists = await firebase.roomExists(roomCode);
         if (!exists) {
-          vscode.window.showErrorMessage('Invalid session code.');
+          vscode.window.showErrorMessage(`Session ${roomCode} not found. Check the code and try again.`);
           return;
         }
-        await firebase.joinRoom(code.toUpperCase(), nickname);
-        chatPanel = ChatPanel.createOrShow(context, firebase, code.toUpperCase(), nickname);
+        await firebase.joinRoom(roomCode, nickname);
+        chatPanel = ChatPanel.createOrShow(context, firebase, roomCode, nickname);
+        vscode.window.showInformationMessage(`Joined session ${roomCode}`);
       } catch (e: any) {
-        vscode.window.showErrorMessage(`Failed to join session: ${e.message}`);
+        vscode.window.showErrorMessage(`Join failed: ${e.message}`);
       }
     }
   });
