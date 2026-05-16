@@ -10,7 +10,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onCommand:subtitleWorkspace.open"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [

@@ -9,13 +9,18 @@ export class ChatPanel {
   private readonly firebase: FirebaseService;
   private readonly roomCode: string;
   private readonly nickname: string;
+  private readonly onNewMessage: () => void;
+  private readonly onDisposeCallback: () => void;
+  private lastMessageCount = 0;
   private disposables: vscode.Disposable[] = [];
 
   public static createOrShow(
     context: vscode.ExtensionContext,
     firebase: FirebaseService,
     roomCode: string,
-    nickname: string
+    nickname: string,
+    onNewMessage: () => void,
+    onDispose: () => void
   ): ChatPanel {
     if (ChatPanel.instance) {
       ChatPanel.instance.panel.reveal(vscode.ViewColumn.One);
@@ -32,7 +37,7 @@ export class ChatPanel {
       }
     );
 
-    ChatPanel.instance = new ChatPanel(panel, firebase, roomCode, nickname);
+    ChatPanel.instance = new ChatPanel(panel, firebase, roomCode, nickname, onNewMessage, onDispose);
     return ChatPanel.instance;
   }
 
@@ -40,12 +45,16 @@ export class ChatPanel {
     panel: vscode.WebviewPanel,
     firebase: FirebaseService,
     roomCode: string,
-    nickname: string
+    nickname: string,
+    onNewMessage: () => void,
+    onDispose: () => void
   ) {
     this.panel = panel;
     this.firebase = firebase;
     this.roomCode = roomCode;
     this.nickname = nickname;
+    this.onNewMessage = onNewMessage;
+    this.onDisposeCallback = onDispose;
 
     this.panel.webview.html = this.getHtml();
 
@@ -53,6 +62,9 @@ export class ChatPanel {
       async (msg) => {
         if (msg.type === 'send') {
           await this.firebase.sendMessage(this.roomCode, this.nickname, msg.text);
+        } else if (msg.type === 'copyCode') {
+          await vscode.env.clipboard.writeText(this.roomCode);
+          vscode.window.showInformationMessage(`Session code copied: ${this.roomCode}`);
         }
       },
       null,
@@ -60,10 +72,28 @@ export class ChatPanel {
     );
 
     this.firebase.listenMessages(this.roomCode, (messages) => {
+      // Detect new messages from others
+      if (messages.length > this.lastMessageCount) {
+        const newOnes = messages.slice(this.lastMessageCount);
+        for (const m of newOnes) {
+          if (m.sender !== this.nickname) {
+            this.onNewMessage();
+          }
+        }
+      }
+      this.lastMessageCount = messages.length;
       this.panel.webview.postMessage({ type: 'messages', data: messages, me: this.nickname });
     });
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+  }
+
+  public isVisible(): boolean {
+    return this.panel.visible;
+  }
+
+  public reveal() {
+    this.panel.reveal(vscode.ViewColumn.One);
   }
 
   public dispose() {
@@ -71,6 +101,7 @@ export class ChatPanel {
     this.firebase.stopListening();
     this.panel.dispose();
     this.disposables.forEach((d) => d.dispose());
+    this.onDisposeCallback();
   }
 
   private getHtml(): string {
@@ -104,7 +135,6 @@ export class ChatPanel {
     flex-direction: column;
   }
 
-  /* Header — looks like a subtitle file toolbar */
   .toolbar {
     background: var(--header-bg);
     border-bottom: 1px solid var(--border);
@@ -120,11 +150,27 @@ export class ChatPanel {
     color: var(--text);
     font-weight: bold;
   }
+  .toolbar .copy-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 2px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    border-radius: 2px;
+  }
+  .toolbar .copy-btn:hover {
+    background: var(--border);
+    color: var(--text);
+  }
   .toolbar .meta {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
-  /* Column headers */
   .col-header {
     display: grid;
     grid-template-columns: 32px 100px 80px 1fr;
@@ -139,7 +185,6 @@ export class ChatPanel {
     flex-shrink: 0;
   }
 
-  /* Message area */
   .messages {
     flex: 1;
     overflow-y: auto;
@@ -156,18 +201,9 @@ export class ChatPanel {
     border-bottom: 1px solid #2a2a2a;
     line-height: 1.6;
   }
-  .msg-row:hover {
-    background: var(--surface);
-  }
-  .msg-row .seq {
-    color: var(--text-dim);
-    text-align: right;
-    padding-right: 8px;
-  }
-  .msg-row .tc {
-    color: var(--tc-color);
-    font-variant-numeric: tabular-nums;
-  }
+  .msg-row:hover { background: var(--surface); }
+  .msg-row .seq { color: var(--text-dim); text-align: right; padding-right: 8px; }
+  .msg-row .tc { color: var(--tc-color); font-variant-numeric: tabular-nums; }
   .msg-row .speaker {
     font-weight: bold;
     white-space: nowrap;
@@ -176,12 +212,8 @@ export class ChatPanel {
   }
   .msg-row .speaker.me { color: var(--my-color); }
   .msg-row .speaker.other { color: var(--other-color); }
-  .msg-row .line {
-    color: var(--text);
-    word-break: break-word;
-  }
+  .msg-row .line { color: var(--text); word-break: break-word; }
 
-  /* Input area — looks like subtitle entry */
   .input-area {
     background: var(--surface);
     border-top: 1px solid var(--border);
@@ -205,9 +237,7 @@ export class ChatPanel {
     outline: none;
     border-radius: 2px;
   }
-  .input-area input:focus {
-    border-color: var(--accent);
-  }
+  .input-area input:focus { border-color: var(--accent); }
   .input-area button {
     background: transparent;
     border: 1px solid var(--border);
@@ -219,10 +249,7 @@ export class ChatPanel {
     margin-left: 6px;
     border-radius: 2px;
   }
-  .input-area button:hover {
-    background: var(--border);
-    color: var(--text);
-  }
+  .input-area button:hover { background: var(--border); color: var(--text); }
 
   .empty-state {
     display: flex;
@@ -239,7 +266,10 @@ export class ChatPanel {
     <span class="file-name">project_final_v3_review.srt</span>
     <span>SRT</span>
     <span>UTF-8</span>
-    <span class="meta" id="status">Session: ${this.roomCode}</span>
+    <div class="meta">
+      <span id="status">${this.roomCode}</span>
+      <button class="copy-btn" id="copyBtn" title="Copy session code">Copy</button>
+    </div>
   </div>
 
   <div class="col-header">
@@ -267,6 +297,7 @@ export class ChatPanel {
     const emptyEl = document.getElementById('empty');
     const inputEl = document.getElementById('input');
     const sendBtn = document.getElementById('sendBtn');
+    const copyBtn = document.getElementById('copyBtn');
     const nextSeqEl = document.getElementById('nextSeq');
     const nextTcEl = document.getElementById('nextTc');
 
@@ -296,6 +327,11 @@ export class ChatPanel {
       if (e.key === 'Enter') send();
     });
     sendBtn.addEventListener('click', send);
+    copyBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'copyCode' });
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+    });
 
     window.addEventListener('message', (e) => {
       const msg = e.data;
