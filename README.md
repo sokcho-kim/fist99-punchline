@@ -4,7 +4,7 @@ Real-time collaborative subtitle review tool for VSCode.
 
 Team members can create or join sessions to exchange timestamped subtitle notes — all within the editor.
 
-![Main UI](docs/main-ui.png)
+![Main UI](docs/main-ui.svg)
 
 ---
 
@@ -40,7 +40,7 @@ Restart VSCode after installation.
 3. Select **Create New Session**
 4. Session code is copied to clipboard automatically — share it with your partner
 
-![Create Session](docs/create-session.png)
+![Create Session](docs/create-session.svg)
 
 ### Join a Session (Guest)
 
@@ -49,7 +49,7 @@ Restart VSCode after installation.
 3. Select **Join Existing Session**
 4. Paste the 6-digit code
 
-![Join Session](docs/join-session.png)
+![Join Session](docs/join-session.svg)
 
 ### Start Reviewing
 

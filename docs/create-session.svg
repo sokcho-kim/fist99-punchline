@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="200" font-family="Consolas, monospace">
+  <!-- Background -->
+  <rect width="520" height="200" fill="#1e1e1e"/>
+
+  <!-- Command palette -->
+  <rect x="60" y="20" width="400" height="32" rx="4" fill="#252526" stroke="#007acc" stroke-width="1.5"/>
+  <text x="76" y="41" fill="#cccccc" font-size="13">Subtitle Workspace: Open Editor</text>
+
+  <!-- Quick pick dropdown -->
+  <rect x="60" y="56" width="400" height="60" rx="4" fill="#252526" stroke="#3c3c3c"/>
+  <rect x="60" y="56" width="400" height="28" rx="4" fill="#094771"/>
+  <text x="76" y="75" fill="#ffffff" font-size="13">Create New Session</text>
+  <text x="76" y="103" fill="#cccccc" font-size="13">Join Existing Session</text>
+
+  <!-- Info notification -->
+  <rect x="60" y="136" width="400" height="44" rx="4" fill="#252526" stroke="#3c3c3c"/>
+  <rect x="60" y="136" width="4" height="44" rx="2" fill="#3794ff"/>
+  <text x="76" y="155" fill="#cccccc" font-size="12">Session: PPG55D (copied to clipboard)</text>
+  <rect x="350" y="145" width="95" height="24" rx="3" fill="#094771"/>
+  <text x="365" y="161" fill="#ffffff" font-size="11">Copy Again</text>
+</svg>

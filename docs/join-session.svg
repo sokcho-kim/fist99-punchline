@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="140" font-family="Consolas, monospace">
+  <!-- Background -->
+  <rect width="520" height="140" fill="#1e1e1e"/>
+
+  <!-- Input box -->
+  <rect x="60" y="20" width="400" height="32" rx="4" fill="#252526" stroke="#007acc" stroke-width="1.5"/>
+  <text x="76" y="41" fill="#cccccc" font-size="13">PPG55D</text>
+  <text x="350" y="41" fill="#808080" font-size="11">Enter the 6-digit session code</text>
+
+  <!-- Success notification -->
+  <rect x="60" y="76" width="400" height="40" rx="4" fill="#252526" stroke="#3c3c3c"/>
+  <rect x="60" y="76" width="4" height="40" rx="2" fill="#3794ff"/>
+  <text x="76" y="100" fill="#cccccc" font-size="12">Joined session PPG55D</text>
+</svg>
